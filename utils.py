@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 import shap
@@ -81,11 +81,12 @@ def get_feature_importance(data, target_column, features, n_features=15):
     return top_features, scores
 
 
-def tune_randomforest_classifier(data, X_train, X_test, y_train, y_test, f_dict, chemical,
-                                 target='pain improvement percentage'):
+def tune_randomforest_classifier(X_train, X_test, y_train, y_test, f_dict, chemical,
+                                 target='pain improvement percentage', threshold=0.25):
     # This function tunes a RandomForest classifier using RandomizedSearchCV
-    # It also calculates the SHAP values for the best model,
-    # and updates the feature importance dictionary if needed (chemical is True)
+    # It calculates SHAP values for the best model
+    # Updates the feature importance dictionary if needed (chemical is True)
+    # Also calculates AUC, precision, recall, and F1-score metrics
 
     # Define the parameter grid to search
     param_dist = {
@@ -96,11 +97,10 @@ def tune_randomforest_classifier(data, X_train, X_test, y_train, y_test, f_dict,
         'min_samples_leaf': [2, 4, 7],
         'bootstrap': [True, False]
     }
-    y_train[target] = y_train[target].apply(transform_column)
 
-    y_test[target] = y_test[target].apply(transform_column)
-
-    data[target] = data[target].apply(transform_column)
+    # Apply transformation to the target column
+    y_train[target] = y_train[target].apply(transform_column, threshold=threshold)
+    y_test[target] = y_test[target].apply(transform_column, threshold=threshold)
 
     # Create a RandomForest classifier
     rf_model = RandomForestClassifier()
@@ -112,26 +112,41 @@ def tune_randomforest_classifier(data, X_train, X_test, y_train, y_test, f_dict,
     # Fit the model to the training data
     random_search.fit(X_train, np.array(y_train).ravel())
 
+    # Get the best model from RandomizedSearchCV
     best_model = random_search.best_estimator_
-    best_train_roc_auc = random_search.best_score_
-    if chemical:
-        explainer = shap.TreeExplainer(best_model)
 
-        # Calculate SHAP values
+    if chemical:
+        # Calculate SHAP values for feature importance
+        explainer = shap.TreeExplainer(best_model)
         shap_values = explainer.shap_values(X_train)
 
+        # Aggregate SHAP values for feature importance
         sv = shap_values
         aggs = np.abs(sv).mean(1)
         aggs = aggs[0] + aggs[1]
 
+        # Update feature importance dictionary
         for col, val in zip(X_train.columns, aggs):
-            f_dict[col] = f_dict[col] + np.mean(val)
+            f_dict[col] = f_dict.get(col, 0) + np.mean(val)
 
     # Evaluate the best model on the test set
-    y_pred = best_model.predict_proba(X_test)[:, 1]
-    auc_score = roc_auc_score(y_test, y_pred)
+    y_pred_proba = best_model.predict_proba(X_test)[:, 1]
+    y_pred = best_model.predict(X_test)
 
-    return auc_score
+    auc_score = roc_auc_score(y_test, y_pred_proba)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
+
+    # Store all metrics in a dictionary
+    metrics = {
+        'AUC': auc_score,
+        'Precision': precision,
+        'Recall': recall,
+        'F1': f1
+    }
+
+    return metrics
 
 
 def plot_top_features(importance_dict, top_n, plot_title):
@@ -167,7 +182,8 @@ def calculate_differences(scores):
     return scores[:, 1] - scores[:, 0]
 
 
-def plot_waterfall_and_beeswarm(data, boxplot_values, title_waterfall, title_beeswarm, labels_beeswarm, main_title=None):
+def plot_waterfall_and_beeswarm(data, boxplot_values, title_waterfall, title_beeswarm, labels_beeswarm,
+                                main_title=None, metric='AUC'):
     differences = calculate_differences(data)
     sorted_differences = np.sort(differences)[::-1]  # Sort differences from largest to smallest
     sns.set(style="whitegrid")
@@ -185,7 +201,7 @@ def plot_waterfall_and_beeswarm(data, boxplot_values, title_waterfall, title_bee
     ax1 = sns.boxplot(data=boxplot_values, boxprops=dict(facecolor='white', edgecolor='black', linewidth=1), ax=axes[0],
                       width=0.3, palette=box_colors)
 
-    ax1.set_ylabel('AUC scores', fontsize=13)
+    ax1.set_ylabel(f'{metric} scores', fontsize=13)
     ax1.set_xticklabels(labels_beeswarm, fontsize=13)
 
     handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10) for color in
@@ -202,7 +218,7 @@ def plot_waterfall_and_beeswarm(data, boxplot_values, title_waterfall, title_bee
 
     axes[1].set_title(f'{title_waterfall}', fontsize=14, loc='left')
     axes[1].set_xlabel('Index', fontsize=13)
-    axes[1].set_ylabel('AUC difference', fontsize=13)
+    axes[1].set_ylabel(f'{metric} difference', fontsize=13)
 
     # Add dashed line for the median of the waterplot with legend
     median_diff = np.median(differences)
@@ -234,4 +250,3 @@ def transform_column_to3(value):
     elif value <= 0:
         return 'No pain relief'
     return 'Minor pain relief'
-
