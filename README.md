@@ -16,13 +16,8 @@ The data used in this study will be made available in the supplemental table of 
 
 2. **Create a conda environment**:
    ```bash
-   conda create -n cannabinoid_env python=3.10 -c conda-forge shap
+   conda env create -f environment.yml
    conda activate cannabinoid_env
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
    ```
 
 ### Running the Code
