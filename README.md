@@ -14,10 +14,10 @@ The data used in this study will be made available in the supplemental table of 
    cd Cannabinoid_Efficacy_Analysis
    ```
 
-2. **Create a virtual environment**:
+2. **Create a conda environment**:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # For Windows use: venv\Scripts\activate
+   conda create -n cannabinoid_env python=3.10 -c conda-forge shap
+   conda activate cannabinoid_env
    ```
 
 3. **Install dependencies**:

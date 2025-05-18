@@ -52,10 +52,10 @@ def get_columns_names():
 
     return dem_clinic_features, left, right, all_features
 
-def get_feature_importance(data, target_column, features, n_features=15):
+def get_feature_importance(data, target_column, features, n_features=15, threshold=0.2):
     # Process left data
     data = data[features].dropna()
-    data[target_column] = data[target_column].apply(transform_column)
+    data[target_column] = data[target_column].apply(transform_column, threshold = threshold)
 
     X = data.drop(target_column, axis=1)
     y = data[target_column]
