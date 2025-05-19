@@ -1,4 +1,4 @@
-# Machine-Learning Approach Reveals Pain Relief by Medical Cannabis is Not a Placebo Effect
+# Machine-Learning of Medical Cannabis Chemical Profiles Reveals Analgesia Beyond Placebo Expectations
 
 ## Overview
 This study investigates whether the pain relief provided by medical cannabis (MC) is more than just a placebo effect. We use a machine learning model to assess the predictive power of chemical compounds in cannabis alongside demographic and clinical features. Our findings highlight the significance of chemical composition in pain relief.
