@@ -233,9 +233,21 @@ def plot_waterfall_and_beeswarm(data, boxplot_values, title_waterfall, title_bee
     plt.show()
 
 
-def plot_beeswarm_for_feature(data, feature, ax, desired_order,desired_colors, target_column='pain improvement percentage'):
-    sns.boxplot(x=data[target_column], y=data[feature], order=desired_order, ax=ax, width=0.3, palette=desired_colors)
+def plot_beeswarm_for_feature(data, feature, ax, desired_order, desired_colors, target_column='pain improvement percentage'):
+    feature_data = data[[feature, target_column]].dropna()
+
+    sns.boxplot(x=feature_data[target_column], y=feature_data[feature], order=desired_order, ax=ax, width=0.3, palette=desired_colors)
+
+    category_counts = feature_data[target_column].value_counts().reindex(desired_order)
+
     ax.set_xticklabels([])
+
+    # Add count labels below each box
+    for i, category in enumerate(desired_order):
+        if category in category_counts:
+            count = category_counts[category]
+            ax.text(i, ax.get_ylim()[0] - 0.05 * (ax.get_ylim()[1] - ax.get_ylim()[0]),
+                   f"n={count}", ha='center', va='top', fontsize=9)
 
     # Adjust spacing between boxplots
     ax.margins(x=0.1)
@@ -243,6 +255,14 @@ def plot_beeswarm_for_feature(data, feature, ax, desired_order,desired_colors, t
     ax.set_title(feature)
     ax.set_xlabel('')  # Remove x-axis label
     ax.set_ylabel(f'{feature} Value')
+
+    # Adjust spacing between boxplots
+    ax.margins(x=0.1)
+
+    ax.set_title(feature)
+    ax.set_xlabel('')  # Remove x-axis label
+    ax.set_ylabel(f'{feature} Value')
+
 
 def transform_column_to3(value):
     if value >= 0.20 :
